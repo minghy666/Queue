@@ -52,7 +52,7 @@ contract queue{
         breakingIdx = 0; 
     }
 
-    function pushToQueue(address _addr, uint256 _balance) public{
+    function pushToQueue(address _addr, uint64 _balance) public{
         require(_addr != address(0), "invalid address");
         require(_balance >= 0, "invalid balance");
 
@@ -61,7 +61,7 @@ contract queue{
                 Node({
                     addr: _addr,
                     balance: _balance,
-                    queueTime: block.timestamp,
+                    queueTime: uint64(block.timestamp),
                     nodeId: queueItems.length,
                     prev: 0,
                     next: 0,
@@ -77,7 +77,7 @@ contract queue{
                 Node({
                     addr: _addr,
                     balance: _balance,
-                    queueTime: block.timestamp,
+                    queueTime: uint64(block.timestamp),
                     nodeId: _curLength,
                     prev: queueItems.length + 1, //temp since the next pushed one is the node previous 
                     next: preNode.nodeId,
