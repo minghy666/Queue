@@ -27,11 +27,11 @@ contract queue{
 
     struct Node{
         address addr;
-        uint256 balance;
-        uint256 queueTime;
         uint256 nodeId; // nodeId = index(position) in array
         uint256 prev;
         uint256 next;
+        uint64 balance;
+        uint64 queueTime;
         bool isInQueue;
     }
 
@@ -96,7 +96,7 @@ contract queue{
     function jumpToTail(address _addr) public{
         //If current node is head
         if(address_pos[_addr] == headIdx){
-            //Update the neighbor nodes
+            //Update the new head nodes
             queueItems[queueItems[address_pos[_addr]].prev].next = 0;
             headIdx = queueItems[address_pos[_addr]].prev;
         }else{
