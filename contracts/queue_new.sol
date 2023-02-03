@@ -9,17 +9,14 @@ import "hardhat/console.sol";
  * @author Mike
  * @dev Functions of the Queue implementation of A3S protocol 
  *   # Design Idea:
- *   # Dynamics array to store all the queue items 
- *   # Once pushed into array, the Nodes' position will not change within the array
+ *   # Mappings to store all Nodes [address => Node]
  *   # Linked list to store the actual queue position of each node 
- *   # - prev: previous nodeId; 
- *   # - next: next nodeId; 
- *   # - nodeId: the node idx of the array, represent as identifier of the node
- *   # Dynamics Array design
- *   # - Initially Array[0] is queue head, Array[length - 1] is  queue tail
+ *   # - prev: previous node's address
+ *   # - next: next node's address
+ *   # - E.G.
  *   # - Node = [0,1,2,3,4,5,6,7,8,9,10,11,12,13] 
- *   # - next <- ; prev -> 
- *   # - e.g: For Node[2], prev is 3 next is 1
+ *   # - Next <- ; prev -> 
+ *   # - For Node[2], prev is 3 next is 1
  */
 contract newQueue{
 
@@ -42,11 +39,17 @@ contract newQueue{
     //Queue tail position
     address tailIdx;
 
-    //Node[] queueItems;
+    //Maximum Queue Length temp default set to 1000
+    uint64 maxQueueLength;
+
+    //Current Queue Lenght
+    uint64 curQueueLength;
 
     constructor(){
         headIdx = address(0);
         tailIdx = address(0);
+        maxQueueLength = 1000;
+        curQueueLength = 0;
     }
 
     function pushToQueue(address _addr, uint64 _balance) public{
@@ -80,7 +83,7 @@ contract newQueue{
             address_node[tailIdx].prev = _addr;
             tailIdx = _addr;
         }
-        
+        curQueueLength += 1;
     }
 
     function jumpToTail(address _addr) public{
@@ -109,14 +112,23 @@ contract newQueue{
 
     function pushOut(uint256 count) public{
         //Update the queun info
+        require(count > 0, "Invalid count");
+        require(count <= curQueueLength, "exceed the current queue length");
+        
         address startIdx = headIdx;
         for(uint256 i=0; i<count; i++){
             address_node[startIdx].isInQueue = false;
             startIdx = address_node[startIdx].prev;
+            //Remove the node
+            delete address_node[startIdx];
         }
+
         //Update the headIdx
         headIdx = address_node[startIdx].prev;
         address_node[headIdx].next = address(0);
+
+        //Update current queue length
+        curQueueLength -= uint64(count);
     }
 
     //from Head(0) to it's current position, starting from 0
