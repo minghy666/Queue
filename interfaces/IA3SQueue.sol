@@ -48,7 +48,7 @@ interface IA3SQueue {
 
     function iterateQueue() external view;
 
-    event PushIn(address addr, address prev, address next, queueStatus stat, uint64 inQueueTime, uint64 outQueueTime, address headIdx, address tailIdx);
+    event PushIn(address addr, address prev, address next, queueStatus stat, uint64 inQueueTime, address headIdx, address tailIdx);
 
     event JumpToSteal(address jumpingAddr, address stolenAddr, uint256 balance, address headIdx, address tailIdx, queueStatus stolen_stat);
 

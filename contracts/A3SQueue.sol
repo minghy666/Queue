@@ -91,6 +91,10 @@ contract A3SQueue is IA3SQueue{
     //Owner addres
     address owner;
 
+    //Global start time
+    uint64 public globalStartTime;
+    uint64 public preDayMintCount;
+
     constructor(address _token, address _vault){
         headIdx = address(0);
         tailIdx = address(0);
@@ -100,6 +104,8 @@ contract A3SQueue is IA3SQueue{
         token = _token;
         vault = _vault;
         owner = msg.sender;
+        globalStartTime = uint64(block.timestamp + 1 days);
+        preDayMintCount = 0;
     }
 
     //get headIdx
@@ -181,7 +187,7 @@ contract A3SQueue is IA3SQueue{
             }
         }
 
-        emit PushIn(_addr,  address_node[_addr].prev, address_node[_addr].next, address_node[_addr].stat, address_node[_addr].inQueueTime, address_node[_addr].outQueueTime, headIdx, tailIdx);
+        emit PushIn(_addr,  address_node[_addr].prev, address_node[_addr].next, address_node[_addr].stat, address_node[_addr].inQueueTime, headIdx, tailIdx);
     }
 
     function jumpToSteal(address jumpingAddr, address stolenAddr) external {
@@ -240,6 +246,7 @@ contract A3SQueue is IA3SQueue{
 
     function unlockQueue() external {
         require(queuelocked, "A3S: Queue is unlocked now");
+        globalStartTime = uint64(block.timestamp);
         queuelocked = false;
     }
 
