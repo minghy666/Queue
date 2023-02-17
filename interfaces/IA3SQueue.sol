@@ -54,7 +54,7 @@ interface IA3SQueue {
 
     event JumpToTail(address jumpingAddr, address headIdx, address tailIdx);
 
-    event PushedOut(address pushedOutAddr, address headIdx, address tailIdx, queueStatus stat);
+    event PushedOut(address pushedOutAddr, uint64 outQueueTime, address headIdx, address tailIdx, queueStatus stat);
 
     event Claim(address addr, uint256 claimedAmount, queueStatus stat);
 

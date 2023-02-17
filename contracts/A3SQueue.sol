@@ -174,6 +174,7 @@ contract A3SQueue is IA3SQueue{
         curQueueLength += 1;
 
         //Check if Maximum Length reached and Start Push
+        
         if(curQueueLength > maxQueueLength){
             pushOut();
             //Check the prev day in queue count and update Max queue lenght if needed 
@@ -212,7 +213,7 @@ contract A3SQueue is IA3SQueue{
 
         //Update current queue length
         curQueueLength -= 1;
-        emit PushedOut(_cur_addr, headIdx, tailIdx, address_node[_cur_addr].stat);
+        emit PushedOut(_cur_addr, address_node[headIdx].outQueueTime, headIdx, tailIdx, address_node[_cur_addr].stat);
     }
 
     //from Head(0) to it's current position, starting from 0
