@@ -5,7 +5,6 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "../interfaces/IA3SQueue.sol";
 import "../interfaces/IA3SWalletFactoryV3.sol";
-import "./libraries/ABDKMathQuad.sol";
 import "hardhat/console.sol";
 
 /**
@@ -47,8 +46,6 @@ import "hardhat/console.sol";
  --------------
  */
 contract A3SQueue is IA3SQueue {
-    using ABDKMathQuad for uint256;
-    using ABDKMathQuad for bytes16;
     //keep track of the A3S address's position in mapping
     mapping(address => Node) address_node;
     //keep track of in queue history
@@ -70,7 +67,7 @@ contract A3SQueue is IA3SQueue {
     bool public queuelocked;
 
     //All A3S address count, representing currentID
-    uint256 public totalMintedCount;
+    uint32 public totalMintedCount;
 
     //Token Address
     address token;
@@ -80,9 +77,6 @@ contract A3SQueue is IA3SQueue {
 
     //Owner addres
     address owner;
-
-    //A3SFactoryProxy address
-    address A3SWalletFactory;
 
     //Jumpe to tail payment
     uint256 jumpingFee;
@@ -227,8 +221,7 @@ contract A3SQueue is IA3SQueue {
             address_node[_addr].stat,
             address_node[_addr].inQueueTime,
             headIdx,
-            tailIdx,
-            curQueueLength
+            tailIdx
         );
     }
 
@@ -271,21 +264,17 @@ contract A3SQueue is IA3SQueue {
             address_node[headIdx].outQueueTime,
             headIdx,
             tailIdx,
-            address_node[_cur_addr].stat,
-            curQueueLength
+            address_node[_cur_addr].stat
         );
     }
 
-    //from Head(0) to it's current position, starting from 1, if not in queue return 0;
+    //from Head(0) to it's current position, starting from 0
     function getCurrentPosition(address _addr)
         external
         view
         returns (uint256 ans)
     {
-        if(address_node[_addr].stat != queueStatus.INQUEUE){
-            return 0;
-        }
-        ans = 1;
+        ans = 0;
         address startIdx = headIdx;
         while (startIdx != _addr) {
             ans += 1;
@@ -419,57 +408,89 @@ contract A3SQueue is IA3SQueue {
         view
         returns (uint256 amount)
     {
-        uint256 r = 5;
-        uint16[16] memory _fibonacci = [
-            1,
-            2,
-            3,
-            5,
-            8,
-            13,
-            21,
-            34,
-            55,
-            89,
-            144,
-            233,
-            377,
-            610,
-            987,
-            1597
-        ];
-        //Get DiffID
-        uint256 _currID = uint256(
-            IA3SWalletFactoryV3(A3SWalletFactory).walletIdOf(_addr)
-        );
-        uint256 _diffID = totalMintedCount - _currID;
-        //N = 1.1 + 0.1 * ()
-        bytes16 _n = _getN(_currID);
+        uint16[17] memory _fibonacci = [1,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987,1597];
+        //DiffID
+        uint128 _diffID = uint128(totalMintedCount - address_node[_addr].id);
+        //N: base 10, start from the 1st address, every 1000 address add 1
+        uint128 _n = 10 + uint128(totalMintedCount / 1000);
         //T: from _fibonacci array
-        uint256 _T = 0;
-        for (uint256 i = 0; i <= 16; i++) {
-            if (
-                ((block.timestamp - address_node[_addr].inQueueTime) / 86400) >=
-                _fibonacci[i] &&
-                ((block.timestamp - address_node[_addr].inQueueTime) / 86400) <
-                _fibonacci[i + 1]
-            ) {
-                _T = _fibonacci[i];
-            }
-        }
-        bytes16 _amount = ABDKMathQuad
-            .log_2(_diffID.fromUInt())
-            .div(ABDKMathQuad.log_2(_n))
-            .mul(_T.fromUInt())
-            .mul(r.fromUInt());
-        amount = _amount.toUInt();
+        uint128 _T = 2;
+        // for(uint256 i=0; i<=16; i++){
+        //     if(_fibonacci[i] > (block.timestamp - address_node[_addr].inQueueTime)/86400){
+        //         _T = _fibonacci[i];
+        //     }
+        // }
+        amount = uint256(
+            (log_2(uint256(_n)) / log_2(uint256(_diffID))) * uint128(_T)
+        );
     }
 
-    function _getN(uint256 diffID) internal pure returns (bytes16 n) {
-        bytes16 m = uint256(11).fromUInt().div(uint256(10).fromUInt());
-        bytes16 q = uint256(1).fromUInt().div(uint256(10).fromUInt());
-        bytes16 k = uint256(diffID / uint256(100)).fromUInt();
-        n = m.add(q.mul(k));
+    function log_2(uint256 x) internal pure returns (uint256 y) {
+        assembly {
+            let arg := x
+            x := sub(x, 1)
+            x := or(x, div(x, 0x02))
+            x := or(x, div(x, 0x04))
+            x := or(x, div(x, 0x10))
+            x := or(x, div(x, 0x100))
+            x := or(x, div(x, 0x10000))
+            x := or(x, div(x, 0x100000000))
+            x := or(x, div(x, 0x10000000000000000))
+            x := or(x, div(x, 0x100000000000000000000000000000000))
+            x := add(x, 1)
+            let m := mload(0x40)
+            mstore(
+                m,
+                0xf8f9cbfae6cc78fbefe7cdc3a1793dfcf4f0e8bbd8cec470b6a28a7a5a3e1efd
+            )
+            mstore(
+                add(m, 0x20),
+                0xf5ecf1b3e9debc68e1d9cfabc5997135bfb7a7a3938b7b606b5b4b3f2f1f0ffe
+            )
+            mstore(
+                add(m, 0x40),
+                0xf6e4ed9ff2d6b458eadcdf97bd91692de2d4da8fd2d0ac50c6ae9a8272523616
+            )
+            mstore(
+                add(m, 0x60),
+                0xc8c0b887b0a8a4489c948c7f847c6125746c645c544c444038302820181008ff
+            )
+            mstore(
+                add(m, 0x80),
+                0xf7cae577eec2a03cf3bad76fb589591debb2dd67e0aa9834bea6925f6a4a2e0e
+            )
+            mstore(
+                add(m, 0xa0),
+                0xe39ed557db96902cd38ed14fad815115c786af479b7e83247363534337271707
+            )
+            mstore(
+                add(m, 0xc0),
+                0xc976c13bb96e881cb166a933a55e490d9d56952b8d4e801485467d2362422606
+            )
+            mstore(
+                add(m, 0xe0),
+                0x753a6d1b65325d0c552a4d1345224105391a310b29122104190a110309020100
+            )
+            mstore(0x40, add(m, 0x100))
+            let
+                magic
+            := 0x818283848586878898a8b8c8d8e8f929395969799a9b9d9e9faaeb6bedeeff
+            let
+                shift
+            := 0x100000000000000000000000000000000000000000000000000000000000000
+            let a := div(mul(x, magic), shift)
+            y := div(mload(add(m, sub(255, a))), shift)
+            y := add(
+                y,
+                mul(
+                    256,
+                    gt(
+                        arg,
+                        0x8000000000000000000000000000000000000000000000000000000000000000
+                    )
+                )
+            )
+        }
     }
 
     //For testing purpose
