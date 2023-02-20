@@ -40,7 +40,7 @@ interface IA3SQueue {
     //from Head(0) to it's current position, starting from 0
     function getCurrentPosition(address _addr) external view returns(uint256);
 
-    function claim(address _addr) external;
+    function mint(address _addr) external;
 
     function lockQueue() external;
 
@@ -56,6 +56,6 @@ interface IA3SQueue {
 
     event PushedOut(address pushedOutAddr, uint64 outQueueTime, address headIdx, address tailIdx, queueStatus stat);
 
-    event Claim(address addr, uint256 claimedAmount, queueStatus stat);
+    event Mint(address addr, uint256 claimedAmount, queueStatus stat);
 
 }
