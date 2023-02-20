@@ -224,7 +224,6 @@ contract A3SQueue is IA3SQueue {
             _addr,
             address_node[_addr].prev,
             address_node[_addr].next,
-            address_node[_addr].stat,
             address_node[_addr].inQueueTime,
             headIdx,
             tailIdx,
@@ -234,20 +233,12 @@ contract A3SQueue is IA3SQueue {
 
     function jumpToSteal(address jumpingAddr, address stolenAddr) external {
         _jumpToTail(jumpingAddr);
-        uint256 _balance = _steal(stolenAddr);
-        emit JumpToSteal(
-            jumpingAddr,
-            stolenAddr,
-            _balance,
-            headIdx,
-            tailIdx,
-            address_node[stolenAddr].stat
-        );
+        _steal(stolenAddr);
     }
 
     function jumpToTail(address jumpingAddr) external {
         _jumpToTail(jumpingAddr);
-        emit JumpToTail(jumpingAddr, headIdx, tailIdx);
+        emit JumpToTail(jumpingAddr, headIdx, tailIdx, curQueueLength);
     }
 
     function pushOut() public {
@@ -271,7 +262,6 @@ contract A3SQueue is IA3SQueue {
             address_node[headIdx].outQueueTime,
             headIdx,
             tailIdx,
-            address_node[_cur_addr].stat,
             curQueueLength
         );
     }
@@ -282,7 +272,7 @@ contract A3SQueue is IA3SQueue {
         view
         returns (uint256 ans)
     {
-        if(address_node[_addr].stat != queueStatus.INQUEUE){
+        if (address_node[_addr].stat != queueStatus.INQUEUE) {
             return 0;
         }
         ans = 1;
@@ -317,7 +307,7 @@ contract A3SQueue is IA3SQueue {
         IERC20(token).transferFrom(vault, _addr, 10000);
         address_node[_addr].stat = queueStatus.CLAIMED;
 
-        emit Mint(_addr, _balance, address_node[_addr].stat);
+        emit Mint(_addr, _balance);
     }
 
     function lockQueue() external {
@@ -379,6 +369,8 @@ contract A3SQueue is IA3SQueue {
         IERC20(token).transferFrom(vault, tailIdx, _balance);
         address_node[_addr].balance = 0;
         address_node[_addr].stat = queueStatus.STOLEN;
+
+        emit Steal(tailIdx, _addr, _balance);
         return _balance;
     }
 

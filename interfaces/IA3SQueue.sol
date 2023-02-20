@@ -52,13 +52,13 @@ interface IA3SQueue {
 
     function unlockQueue() external;
 
+    //For Testing use 
     function iterateQueue() external view;
 
     event PushIn(
         address addr,
         address prev,
         address next,
-        queueStatus stat,
         uint64 inQueueTime,
         address headIdx,
         address tailIdx,
@@ -74,16 +74,17 @@ interface IA3SQueue {
         queueStatus stolen_stat
     );
 
-    event JumpToTail(address jumpingAddr, address headIdx, address tailIdx);
+    event JumpToTail(address jumpingAddr, address headIdx, address tailIdx, uint64 curQueueLength);
+
+    event Steal(address stealAddr, address stolenAddr, uint256 amount);
 
     event PushedOut(
         address pushedOutAddr,
         uint64 outQueueTime,
         address headIdx,
         address tailIdx,
-        queueStatus stat,
         uint64 curQueueLength
     );
 
-    event Mint(address addr, uint256 claimedAmount, queueStatus stat);
+    event Mint(address addr, uint256 claimedAmount);
 }
