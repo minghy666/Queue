@@ -65,15 +65,6 @@ interface IA3SQueue {
         uint64 curQueueLength
     );
 
-    event JumpToSteal(
-        address jumpingAddr,
-        address stolenAddr,
-        uint256 balance,
-        address headIdx,
-        address tailIdx,
-        queueStatus stolen_stat
-    );
-
     event JumpToTail(address jumpingAddr, address headIdx, address tailIdx, uint64 curQueueLength);
 
     event Steal(address stealAddr, address stolenAddr, uint256 amount);
