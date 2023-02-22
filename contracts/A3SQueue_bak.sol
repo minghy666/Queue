@@ -46,7 +46,7 @@ import "hardhat/console.sol";
  steal failure - NOT in queueTail 
  --------------
  */
-contract A3SQueueBackup is IA3SQueue {
+contract A3SQueueBackUp is IA3SQueue {
     using ABDKMathQuad for uint256;
     using ABDKMathQuad for bytes16;
     //keep track of the A3S address's position in mapping
@@ -140,6 +140,10 @@ contract A3SQueueBackup is IA3SQueue {
         return address_node[_addr].stat;
     }
 
+    function getTokenAmount(address _addr) external view override returns (uint256) {
+        return address_node[_addr].balance;
+    }
+
     function pushIn(address _addr) external {
         require(_addr != address(0), "A3S: invalid address");
         //require(!wasQueued[_addr], "A3S: address has played before, please unlock the address");
@@ -155,7 +159,6 @@ contract A3SQueueBackup is IA3SQueue {
                 inQueueTime: uint64(block.timestamp),
                 prev: _addr,
                 next: address(0),
-                id: uint32(curQueueLength) + 1,
                 outQueueTime: 0,
                 stat: queueStatus.INQUEUE
             });
@@ -168,7 +171,6 @@ contract A3SQueueBackup is IA3SQueue {
                 inQueueTime: uint64(block.timestamp),
                 prev: address(0),
                 next: tailIdx,
-                id: uint32(curQueueLength) + 1,
                 outQueueTime: 0,
                 stat: queueStatus.INQUEUE
             });
@@ -224,7 +226,6 @@ contract A3SQueueBackup is IA3SQueue {
             _addr,
             address_node[_addr].prev,
             address_node[_addr].next,
-            address_node[_addr].stat,
             address_node[_addr].inQueueTime,
             headIdx,
             tailIdx,
@@ -234,20 +235,12 @@ contract A3SQueueBackup is IA3SQueue {
 
     function jumpToSteal(address jumpingAddr, address stolenAddr) external {
         _jumpToTail(jumpingAddr);
-        uint256 _balance = _steal(stolenAddr);
-        emit JumpToSteal(
-            jumpingAddr,
-            stolenAddr,
-            _balance,
-            headIdx,
-            tailIdx,
-            address_node[stolenAddr].stat
-        );
+        _steal(stolenAddr);
     }
 
     function jumpToTail(address jumpingAddr) external {
         _jumpToTail(jumpingAddr);
-        emit JumpToTail(jumpingAddr, headIdx, tailIdx);
+        emit JumpToTail(jumpingAddr, headIdx, tailIdx, curQueueLength);
     }
 
     function pushOut() public {
@@ -271,7 +264,6 @@ contract A3SQueueBackup is IA3SQueue {
             address_node[headIdx].outQueueTime,
             headIdx,
             tailIdx,
-            address_node[_cur_addr].stat,
             curQueueLength
         );
     }
@@ -282,7 +274,7 @@ contract A3SQueueBackup is IA3SQueue {
         view
         returns (uint256 ans)
     {
-        if(address_node[_addr].stat != queueStatus.INQUEUE){
+        if (address_node[_addr].stat != queueStatus.INQUEUE) {
             return 0;
         }
         ans = 1;
@@ -294,30 +286,13 @@ contract A3SQueueBackup is IA3SQueue {
     }
 
     function mint(address _addr) external {
-        //Require minted addrss belongs to msg.sender
-        // require(
-        //     IA3SWalletFactoryV3().walletOwnerOf(_addr) == msg.sender,
-        //     "A3S: ONLY owner can mint"
-        // );
-        require(
-            address_node[_addr].outQueueTime > 0,
-            "A3S: NOT valid to calim - not pushed"
-        );
-        require(
-            address_node[_addr].stat == queueStatus.PENDING,
-            "A3S: ONLY pending status could be claimed"
-        );
-        require(
-            uint64(block.timestamp) - address_node[_addr].outQueueTime < 3 days,
-            "A3S: NOT valid to calim - out of queue exceed 3 days"
-        );
-        uint256 _balance = address_node[_addr].balance;
-        //NEED Implement: token transfer
-        //IERC20(token).transferFrom(vault, _addr, address_node[_addr].balance);
-        IERC20(token).transferFrom(vault, _addr, 10000);
-        address_node[_addr].stat = queueStatus.CLAIMED;
+        _mint(_addr);
+    }
 
-        emit Mint(_addr, _balance, address_node[_addr].stat);
+    function batchMint(address[] memory _addr) external {
+        for (uint16 i = 0; i < _addr.length; i++) {
+            _mint(_addr[i]);
+        }
     }
 
     function lockQueue() external {
@@ -334,10 +309,10 @@ contract A3SQueueBackup is IA3SQueue {
     function _jumpToTail(address _addr) internal {
         require(_addr != address(0), "A3S: invalid address");
         require(_addr != tailIdx, "A3S: already in queue tail!");
-        require(
-            IERC20(token).transferFrom(_addr, vault, jumpingFee),
-            "A3S: jumping fee not paied"
-        );
+        // require(
+        //     IERC20(token).transferFrom(_addr, vault, jumpingFee),
+        //     "A3S: jumping fee not paied"
+        // );
         //If current node is head
         if (_addr == headIdx) {
             //Update the new head nodes
@@ -379,7 +354,36 @@ contract A3SQueueBackup is IA3SQueue {
         IERC20(token).transferFrom(vault, tailIdx, _balance);
         address_node[_addr].balance = 0;
         address_node[_addr].stat = queueStatus.STOLEN;
+
+        emit Steal(tailIdx, _addr, _balance);
         return _balance;
+    }
+
+    function _mint(address _addr) internal {
+        //Require minted addrss belongs to msg.sender
+        // require(
+        //     IA3SWalletFactoryV3().walletOwnerOf(_addr) == msg.sender,
+        //     "A3S: ONLY owner can mint"
+        // );
+        require(
+            address_node[_addr].outQueueTime > 0,
+            "A3S: NOT valid to calim - not pushed"
+        );
+        require(
+            address_node[_addr].stat == queueStatus.PENDING,
+            "A3S: ONLY pending status could be claimed"
+        );
+        require(
+            uint64(block.timestamp) - address_node[_addr].outQueueTime < 3 days,
+            "A3S: NOT valid to calim - out of queue exceed 3 days"
+        );
+        uint256 _balance = address_node[_addr].balance;
+        //NEED Implement: token transfer
+        //IERC20(token).transferFrom(vault, _addr, address_node[_addr].balance);
+        IERC20(token).transferFrom(vault, _addr, 10000);
+        address_node[_addr].stat = queueStatus.CLAIMED;
+
+        emit Mint(_addr, _balance);
     }
 
     function _getExtendLength(uint16 prevDayIncreCount)

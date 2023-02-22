@@ -14,4 +14,8 @@ contract A3STest20Token is ERC20 {
         _mint(to, amount);
     }
 
+    function decimals() public pure override returns(uint8){
+        return 18;
+    }
+
 }
