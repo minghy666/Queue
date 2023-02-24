@@ -12,6 +12,29 @@ const { boolean } = require("hardhat/internal/core/params/argumentTypes");
 describe("A3SQueueContract", function () {
   const Web3Utils = require('web3-utils');
   const MaxQueueLength = 300;
+  const _index = [
+    0,
+    18,
+    32,
+    42,
+    50,
+    58,
+    62,
+    67,
+    71,
+    73,
+    77,
+    78,
+    81,
+    82,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90
+];
   
   async function deployContractAndInit() {
     // Contracts are deployed using the first signer/account by default
@@ -253,32 +276,47 @@ describe("A3SQueueContract", function () {
         expect(await queue.maxQueueLength()).is.equal(500);
       });
 
-      // it("Extend Queue Max Length", async function(){
-      //   const { queue, token, factory, owner, PushedAddress} = await PushIn(200);
-      //   //Next day 
-      //   await time.increase(3600 * 24 * 1);
-      //   //Continue pushing 330 nodes, reaching 300 level
-      //   //max length is 218
-      //   await ExtendedPushIn(queue, factory, owner, PushedAddress, 330, 18, 218);
-      //   //Next day 
-      //   await time.increase(3600 * 24 * 1);
-      //   //Continue pushing 440 nodes, reaching 400 level
-      //   //max length is 250
-      //   await ExtendedPushIn(queue, factory, owner, PushedAddress, 440, 32, 250);
-      //   //Next day 
-      //   await time.increase(3600 * 24 * 1);
-      //   //Continue pushing 550 nodes, reaching 400 level
-      //   //max length is 250
-      //   await ExtendedPushIn(queue, factory, owner, PushedAddress, 550, 42, 292);
-      //   //Next day 
-      //   await time.increase(3600 * 24 * 1);
-      //   //Continue pushing 550 nodes, reaching 400 level
-      //   //max length is 250
-      //   await ExtendedPushIn(queue, factory, owner, PushedAddress, 620, 50, 342);
-        
-      // });
+      it("Extend Queue Max Length - Part Test", async function(){
+        const { queue, token, factory, owner } = await loadFixture(deployContractAndInit);
+        //First day push in 100 address
+        let PushedAddress = await PushIn(100, queue, token, factory, owner, []);
+        //Next day push in 200 address
+        await time.increase(3600 * 24 * 1);
+        PushedAddress  = await PushIn(200, queue, token, factory, owner, PushedAddress);
+        //Next day - start chaning Max Length, since prev day reaches 200 address
+        await time.increase(3600 * 24 * 1);
+        //Continue pushing 330 nodes, reaching 300 level
+        //max length is 318
+        await ExtendedPushIn(queue, factory, owner, PushedAddress, 330, 18, 318);
+        //Next day Pushing 0 address - and after 2 days
+        //max length is still 442
+        //continue pushing 715 nodes, reaching 700 level
+        await time.increase(3600 * 24 * 2);
+        await ExtendedPushIn(queue, factory, owner, PushedAddress, 620, 0, 318);
+        expect(await queue.curQueueLength()).is.equal(318);
+        expect(await queue.maxQueueLength()).is.equal(318);
+      });
 
-      
+      it("Extend Queue Max Length - Full Test", async function(){
+        const { queue, token, factory, owner } = await loadFixture(deployContractAndInit);
+        //First day push in 100 address
+        let PushedAddress = await PushIn(100, queue, token, factory, owner, []);
+        //Next day push in 200 address
+        await time.increase(3600 * 24 * 1);
+        PushedAddress  = await PushIn(200, queue, token, factory, owner, PushedAddress);
+
+        var _maxQueueLength = MaxQueueLength;
+        for (var i=3; i<=22; i++){
+          await time.increase(3600 * 24 * 1);
+          var _pushCount = i * 100 + Math.floor(Math.random() * 99);
+          _maxQueueLength += _index[i-2];
+          console.log("================ The " + i + "th Day Starts ================ ")
+          await ExtendedPushIn(queue, factory, owner, PushedAddress, _pushCount, _index[i-2], _maxQueueLength)
+          console.log("New Push In Count: " + _pushCount);
+          console.log("Max Queue Length extended: " + _index[i-2]);
+          console.log("Updated Max Queue Length is: " + _maxQueueLength);
+        }
+      });
 
   });
 
