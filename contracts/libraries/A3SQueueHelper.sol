@@ -41,65 +41,69 @@ library A3SQueueHelper {
     }
 
     function _mint(
-        address addr,
-        address token,
-        address vault,
-        address A3SWalletFactory,
-        mapping(address => Node) storage addressNode
+        address _addr,
+        address _token,
+        address _vault,
+        address _A3SWalletFactory,
+        uint16 _lockingDay,
+        mapping(address => Node) storage _addressNode
     ) internal {
         //Require minted addrss belongs to msg.sender
         require(
-            IA3SWalletFactoryV3(A3SWalletFactory).walletOwnerOf(addr) ==
+            IA3SWalletFactoryV3(_A3SWalletFactory).walletOwnerOf(_addr) ==
                 msg.sender,
             "A3S: ONLY owner can mint"
         );
         require(
-            addressNode[addr].outQueueTime > 0,
+            _addressNode[_addr].outQueueTime > 0,
             "A3S: NOT valid to calim - not pushed"
         );
         require(
-            addressNode[addr].stat == A3SQueueHelper.queueStatus.PENDING,
+            _addressNode[_addr].stat == A3SQueueHelper.queueStatus.PENDING,
             "A3S: ONLY pending status could be claimed"
         );
         require(
-            uint64(block.timestamp) - addressNode[addr].outQueueTime < 3 days,
-            "A3S: NOT valid to calim - out of queue exceed 3 days"
+            uint64(block.timestamp) - _addressNode[_addr].outQueueTime <
+                _lockingDay * 1 days,
+            "A3S: NOT valid to calim - out of queue exceed unlocking period"
         );
-        uint256 _balance = addressNode[addr].balance;
-        IERC20(token).transferFrom(vault, addr, _balance);
-        addressNode[addr].stat = queueStatus.CLAIMED;
+        uint256 _balance = _addressNode[_addr].balance;
+        IERC20(_token).transferFrom(_vault, _addr, _balance);
+        _addressNode[_addr].stat = queueStatus.CLAIMED;
 
-        emit Mint(addr, _balance);
+        emit Mint(_addr, _balance);
     }
 
     function _steal(
-        address addr,
-        address token,
-        address tailIdx,
-        address vault,
-        mapping(address => Node) storage addressNode
+        address _addr,
+        address _token,
+        address _tailIdx,
+        address _vault,
+        uint16 _lockingDay,
+        mapping(address => Node) storage _addressNode
     ) internal {
         require(
-            addressNode[addr].stat == A3SQueueHelper.queueStatus.PENDING,
+            _addressNode[_addr].stat == A3SQueueHelper.queueStatus.PENDING,
             "A3S: ONLY pending status could be stolen"
         );
         require(
-            uint64(block.timestamp) - addressNode[addr].outQueueTime >= 3 days,
-            "A3S: NOT valid to steal - not reaching 3 days"
+            uint64(block.timestamp) - _addressNode[_addr].outQueueTime >=
+                _lockingDay * 1 days,
+            "A3S: NOT valid to steal - not reaching locking period"
         );
         //ERC20 token transfer for _balance;
-        uint256 _balance = addressNode[addr].balance;
-        IERC20(token).transferFrom(vault, tailIdx, _balance);
-        addressNode[addr].balance = 0;
-        addressNode[addr].stat = A3SQueueHelper.queueStatus.STOLEN;
+        uint256 _balance = _addressNode[_addr].balance;
+        IERC20(_token).transferFrom(_vault, _tailIdx, _balance);
+        _addressNode[_addr].balance = 0;
+        _addressNode[_addr].stat = A3SQueueHelper.queueStatus.STOLEN;
 
-        emit Steal(tailIdx, addr, _balance);
+        emit Steal(_tailIdx, _addr, _balance);
     }
 
     function _getTokenAmount(
-        address addr,
-        address A3SWalletFactory,
-        mapping(address => Node) storage address_node
+        address _addr,
+        address payable _A3SWalletFactory,
+        mapping(address => Node) storage _address_node
     ) internal view returns (uint256 amount) {
         uint16[16] memory _fibonacci = [
             1,
@@ -119,22 +123,23 @@ library A3SQueueHelper {
             987,
             1597
         ];
+        A3SWalletFactoryV3 a3sContract = A3SWalletFactoryV3(_A3SWalletFactory);
         uint256 r = 5;
         //Get DiffID
         uint256 _currID = uint256(
-            IA3SWalletFactoryV3(A3SWalletFactory).walletIdOf(addr)
+            IA3SWalletFactoryV3(_A3SWalletFactory).walletIdOf(_addr)
         );
-        uint256 _diffID = IA3SWalletFactoryV3(A3SWalletFactory)
-            .tokenIdCounter() - _currID;
+        uint256 _diffID = a3sContract.tokenIdCounter() - _currID;
         //N = 1.1 + 0.1 * ()
         bytes16 _n = A3SQueueHelper._getN(_currID);
         //T: from _fibonacci array
         uint256 _T = 0;
         for (uint256 i = 0; i <= 15; i++) {
             if (
-                ((block.timestamp - address_node[addr].inQueueTime) / 86400) >=
+                ((block.timestamp - _address_node[_addr].inQueueTime) /
+                    86400) >=
                 _fibonacci[i] &&
-                ((block.timestamp - address_node[addr].inQueueTime) / 86400) <
+                ((block.timestamp - _address_node[_addr].inQueueTime) / 86400) <
                 _fibonacci[i + 1]
             ) {
                 _T = _fibonacci[i];
@@ -149,43 +154,43 @@ library A3SQueueHelper {
         amount = _amount.toUInt();
     }
 
-    function _getN(uint256 diffID) internal pure returns (bytes16 n) {
+    function _getN(uint256 _diffID) internal pure returns (bytes16 n) {
         bytes16 m = uint256(11).fromUInt().div(uint256(10).fromUInt());
         bytes16 q = uint256(1).fromUInt().div(uint256(10).fromUInt());
-        bytes16 k = uint256(diffID / uint256(100)).fromUInt();
+        bytes16 k = uint256(_diffID / uint256(100)).fromUInt();
         n = m.add(q.mul(k));
     }
 
-    function _getExtendLength(uint64 prevDayIncreCount)
+    function _getExtendLength(uint64 _prevDayIncreCount)
         internal
         pure
         returns (uint64 extendLength)
     {
-        uint16[21] memory _index = [
+        uint8[21] memory _index = [
             0,
             18,
+            32,
+            42,
             50,
-            92,
-            142,
-            200,
-            262,
-            329,
-            400,
-            473,
-            550,
-            628,
-            709,
-            791,
-            875,
-            960,
-            1046,
-            1133,
-            1221,
-            1310,
-            1400
+            58,
+            62,
+            67,
+            71,
+            73,
+            77,
+            78,
+            81,
+            82,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90
         ];
 
-        uint64 n = prevDayIncreCount / 100;
+        uint64 n = _prevDayIncreCount / 100;
         if (n >= 22) {
             extendLength = 90;
         } else {
@@ -195,12 +200,12 @@ library A3SQueueHelper {
 
     //Actual Calculate extended length with deviation
     //Right now is using _getExtendLength which hardcoded the values
-    function _getExtendLength_new(uint64 prevDayIncreCount)
+    function _getExtendLength_new(uint64 _prevDayIncreCount)
         internal
         pure
         returns (uint64)
     {
-        uint64 n = prevDayIncreCount / 100;
+        uint64 n = _prevDayIncreCount / 100;
         if (n == 1) return 0;
         //0.1
         bytes16 a = uint256(1).fromUInt().div(uint256(10).fromUInt());

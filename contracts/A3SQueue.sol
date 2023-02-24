@@ -28,33 +28,24 @@ contract A3SQueue is IA3SQueue, Ownable {
     address public A3SWalletFactory;
     //Global queue start time
     uint64 public lastDayTimer;
-    //uint64 public preDayInQueueCount;
+    //New IN Queue count for today
     uint64 public todayInQueueCount;
-
-    // modifier ONLY_OWNER() {
-    //     require(
-    //         msg.sender == owner,
-    //         "A3S: Access Denied, only owner could call"
-    //     );
-    //     _;
-    // }
+    //Locking day: default is 3, might be updated in future
+    uint16 public lockingDay;
 
     constructor(
         address _token,
         address _vault,
         address _A3SWalletFactory,
-        uint64 _lastDayTimer
+        uint64 _lastDayTimer,
+        uint64 _maxQueueLength
     ) {
-        //headIdx = address(0);
-        //tailIdx = address(0);
-        maxQueueLength = 200;
-        //curQueueLength = 0;
         token = _token;
         vault = _vault;
         lastDayTimer = _lastDayTimer + 1 days;
-        //preDayInQueueCount = 0;
-        //queuelocked = false;
         A3SWalletFactory = _A3SWalletFactory;
+        lockingDay = 3;
+        maxQueueLength = _maxQueueLength;
     }
 
     /**
@@ -74,90 +65,50 @@ contract A3SQueue is IA3SQueue, Ownable {
         queuelocked = false;
     }
 
-    // /**
-    //  * @dev See {IA3SQueue-getGloabalHead}.
-    //  */
-    // function getGloabalHead()
-    //     external
-    //     view
-    //     override
-    //     ONLY_OWNER
-    //     returns (address)
-    // {
-    //     address pointer = headIdx;
-    //     while (addressNode[pointer].next != address(0)) {
-    //         pointer = addressNode[pointer].next;
-    //     }
-    //     return pointer;
-    // }
+    /**
+     * @dev See {IA3SQueue-updateLockingDays}.
+     */
+    function updateLockingDays(uint16 newlockingDays)
+        external
+        override
+        onlyOwner
+    {
+        lockingDay = newlockingDays;
+        emit UpdateLockingDays(newlockingDays, token);
+    }
 
-    // /**
-    //  * @dev See {IA3SQueue-getNext}.
-    //  */
-    // function getNext(address _addr)
-    //     external
-    //     view
-    //     override
-    //     ONLY_OWNER
-    //     returns (address)
-    // {
-    //     return addressNode[_addr].next;
-    // }
-
-    // /**
-    //  * @dev See {IA3SQueue-getPrev}.
-    //  */
-    // function getPrev(address _addr)
-    //     external
-    //     view
-    //     override
-    //     ONLY_OWNER
-    //     returns (address)
-    // {
-    //     return addressNode[_addr].prev;
-    // }
-
-    // /**
-    //  * @dev See {IA3SQueue-getStat}.
-    //  */
-    // function getStat(address _addr)
-    //     external
-    //     view
-    //     override
-    //     returns (A3SQueueHelper.queueStatus)
-    // {
-    //     return addressNode[_addr].stat;
-    // }
-
-    // /**
-    //  * @dev See {IA3SQueue-getTokenAmount}.
-    //  */
-    // function getTokenAmount(address _addr)
-    //     external
-    //     view
-    //     override
-    //     returns (uint256)
-    // {
-    //     return addressNode[_addr].balance;
-    // }
-
+    /**
+     * @dev See {IA3SQueue-updateMaxQueueLength}.
+     */
+    function updateMaxQueueLength(uint64 maximumQL)
+        external
+        override
+        onlyOwner
+    {
+        maxQueueLength = maximumQL;
+    }
+    
     /**
      * @dev See {IA3SQueue-pushIn}.
      */
-    function pushIn(address _addr) external override {
-        require(_addr != address(0));
+    function pushIn(address addr) external override {
+        require(addr != address(0));
         require(
-            addressNode[_addr].addr == address(0),
+            addressNode[addr].addr == address(0),
             "A3S: address played and invalid to queue"
         );
         require(
-            IA3SWalletFactoryV3(A3SWalletFactory).walletIdOf(_addr) != 0,
+            IA3SWalletFactoryV3(A3SWalletFactory).walletIdOf(addr) != 0,
             "A3S: address is not a valid A3S address"
         );
-        require(IA3SWalletFactoryV3(A3SWalletFactory).walletOwnerOf(_addr) == msg.sender, "A3S: ONLY wallet owner could push in");
+        require(
+            IA3SWalletFactoryV3(A3SWalletFactory).walletOwnerOf(addr) ==
+                msg.sender,
+            "A3S: ONLY wallet owner could push in"
+        );
 
         A3SQueueHelper.Node memory new_node = A3SQueueHelper.Node({
-            addr: _addr,
+            addr: addr,
             balance: 0,
             inQueueTime: uint64(block.timestamp),
             prev: address(0),
@@ -166,18 +117,18 @@ contract A3SQueue is IA3SQueue, Ownable {
             stat: A3SQueueHelper.queueStatus.INQUEUE
         });
         if (headIdx == address(0)) {
-            new_node.prev = _addr;
+            new_node.prev = addr;
             new_node.next = address(0);
-            addressNode[_addr] = new_node;
-            headIdx = _addr;
-            tailIdx = _addr;
+            addressNode[addr] = new_node;
+            headIdx = addr;
+            tailIdx = addr;
         } else {
             new_node.prev = address(0);
             new_node.next = tailIdx;
-            addressNode[_addr] = new_node;
+            addressNode[addr] = new_node;
             //Update the next node
-            addressNode[tailIdx].prev = _addr;
-            tailIdx = _addr;
+            addressNode[tailIdx].prev = addr;
+            tailIdx = addr;
         }
         curQueueLength += 1;
 
@@ -192,7 +143,7 @@ contract A3SQueue is IA3SQueue, Ownable {
             uint64((block.timestamp)) - lastDayTimer <= 1 days
         ) {
             lastDayTimer += 1 days;
-            //preDayInQueueCount = todayInQueueCount;
+            //previous day in Queue Count will set to todayInQueueCount;
             //todayInQueueCount = 1;
             //Update maxQueueLenght based on Previous Day in queue count
             if (todayInQueueCount >= 200) {
@@ -219,10 +170,10 @@ contract A3SQueue is IA3SQueue, Ownable {
         }
 
         emit PushIn(
-            _addr,
-            addressNode[_addr].prev,
-            addressNode[_addr].next,
-            addressNode[_addr].inQueueTime,
+            addr,
+            addressNode[addr].prev,
+            addressNode[addr].next,
+            addressNode[addr].inQueueTime,
             headIdx,
             tailIdx,
             curQueueLength
@@ -244,6 +195,7 @@ contract A3SQueue is IA3SQueue, Ownable {
                 token,
                 tailIdx,
                 vault,
+                lockingDay,
                 addressNode
             );
         }
@@ -260,12 +212,13 @@ contract A3SQueue is IA3SQueue, Ownable {
     /**
      * @dev See {IA3SQueue-mint}.
      */
-    function mint(address addr) public override   {
+    function mint(address addr) external override {
         A3SQueueHelper._mint(
             addr,
             token,
             vault,
             A3SWalletFactory,
+            lockingDay,
             addressNode
         );
     }
@@ -280,28 +233,9 @@ contract A3SQueue is IA3SQueue, Ownable {
                 token,
                 vault,
                 A3SWalletFactory,
+                lockingDay,
                 addressNode
             );
-        }
-    }
-
-    /**
-     * @dev See {IA3SQueue-getCurrentPosition}.
-     */
-    function getCurrentPosition(address _addr)
-        external
-        view
-        override
-        returns (uint256 ans)
-    {
-        if (addressNode[_addr].stat != A3SQueueHelper.queueStatus.INQUEUE) {
-            return 0;
-        }
-        ans = 1;
-        address startIdx = headIdx;
-        while (startIdx != _addr) {
-            ans += 1;
-            startIdx = addressNode[startIdx].prev;
         }
     }
 
@@ -310,10 +244,11 @@ contract A3SQueue is IA3SQueue, Ownable {
         address _cur_addr = headIdx;
         addressNode[_cur_addr].stat = A3SQueueHelper.queueStatus.PENDING;
         addressNode[_cur_addr].outQueueTime = uint64(block.timestamp);
+        address payable A3SWalletFactory_payable = payable(A3SWalletFactory);
         addressNode[_cur_addr].balance = uint256(
             A3SQueueHelper._getTokenAmount(
                 _cur_addr,
-                A3SWalletFactory,
+                A3SWalletFactory_payable,
                 addressNode
             )
         );
@@ -334,7 +269,11 @@ contract A3SQueue is IA3SQueue, Ownable {
     function _jumpToTail(address _addr) internal {
         require(_addr != address(0));
         require(_addr != tailIdx, "A3S: already in queue tail!");
-        require(IA3SWalletFactoryV3(A3SWalletFactory).walletOwnerOf(_addr) == msg.sender, "A3S: ONLY wallet owner could push in");
+        require(
+            IA3SWalletFactoryV3(A3SWalletFactory).walletOwnerOf(_addr) ==
+                msg.sender,
+            "A3S: ONLY wallet owner could push in"
+        );
         //If current node is head
         if (_addr == headIdx) {
             //Update the new head nodes

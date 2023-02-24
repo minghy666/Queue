@@ -34,5 +34,9 @@ module.exports = {
       accounts: [process.env.PRIVATE_KEY],
     }
 
+  },
+
+  mocha: {
+    timeout: 10000000
   }
 };

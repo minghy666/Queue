@@ -18,42 +18,23 @@ interface IA3SQueue {
      */
     function unlockQueue() external;
 
-    // /**
-    //  * @dev Get the actual head in queue (ignoring queue status)
-    //  *
-    //  * Requirements:
-    //  * - `msg.sender` must be owner
-    //  */
-    // function getGloabalHead() external view returns (address);
+    /**
+     * @dev Operation purpose: update the locking days, default is 3 days
+     *
+     * Requirements:
+     * - `msg.sender` must be owner
+     *
+     */
+    function updateLockingDays(uint16 newlockingDays) external;
 
-    // /**
-    //  * @dev Get the next node of '_addr'
-    //  *
-    //  * Requirements:
-    //  * - `msg.sender` must be owner
-    //  */
-    // function getNext(address _addr) external view returns (address);
-
-    // /**
-    //  * @dev Get the prev node of '_addr'
-    //  *
-    //  * Requirements:
-    //  * - `msg.sender` must be owner
-    //  */
-    // function getPrev(address _addr) external view returns (address);
-
-    // /**
-    //  * @dev Get the status of node '_addr'
-    //  */
-    // function getStat(address _addr)
-    //     external
-    //     view
-    //     returns (A3SQueueHelper.queueStatus);
-
-    // /**
-    //  * @dev Get the token amount(available to mint) of node '_addr'
-    //  */
-    // function getTokenAmount(address _addr) external view returns (uint256);
+    /**
+     * @dev Operation purpose: update the Maximum Queue Length, default is 300
+     *
+     * Requirements:
+     * - `msg.sender` must be owner
+     *
+     */
+    function updateMaxQueueLength(uint64 maximumQL) external;
 
     /**
      * @dev Push Node into queue, initiate the Node status
@@ -69,7 +50,7 @@ interface IA3SQueue {
      *
      * Emits a {Push In} event.
      */
-    function pushIn(address _addr) external;
+    function pushIn(address addr) external;
 
     /**
      * @dev Put 'jumpingAddr' to queue tail, Steal the 'stolenAddr' $A
@@ -94,17 +75,6 @@ interface IA3SQueue {
     function jumpToTail(address jumpingAddr) external;
 
     /**
-     * @dev Get Node's current position
-     *      Starting from 1, if not in queue return 0;
-     *
-     * Requirements:
-     *
-     * - `_addr` must not be O address.
-     *
-     */
-    function getCurrentPosition(address _addr) external view returns (uint256);
-
-    /**
      * @dev Mint the $A for the address
      *      calling IERC20 transferFrom(valut, _addr, tokenAmount)
      *
@@ -115,12 +85,12 @@ interface IA3SQueue {
      *
      * Emits a {Mint} event.
      */
-    function mint(address _addr) external;
+    function mint(address addr) external;
 
     /**
      * @dev Batch Mint the $A for all the address of current owner
      */
-    function batchMint(address[] memory _addr) external;
+    function batchMint(address[] memory addr) external;
 
     /**
      * @dev Events definition
@@ -153,4 +123,6 @@ interface IA3SQueue {
     );
 
     event Mint(address addr, uint256 mintAmount);
+
+    event UpdateLockingDays(uint16 newlockingDays, address tokenAddress);
 }
