@@ -68,8 +68,8 @@ library A3SQueueHelper {
             "A3S: NOT valid to calim - out of queue exceed unlocking period"
         );
         uint256 _balance = _addressNode[_addr].balance;
-        IERC20(_token).transferFrom(_vault, _addr, _balance);
         _addressNode[_addr].stat = queueStatus.CLAIMED;
+        IERC20(_token).transferFrom(_vault, _addr, _balance);
 
         emit Mint(_addr, _balance);
     }
@@ -93,10 +93,10 @@ library A3SQueueHelper {
         );
         //ERC20 token transfer for _balance;
         uint256 _balance = _addressNode[_addr].balance;
-        IERC20(_token).transferFrom(_vault, _tailIdx, _balance);
         _addressNode[_addr].balance = 0;
         _addressNode[_addr].stat = A3SQueueHelper.queueStatus.STOLEN;
-
+        IERC20(_token).transferFrom(_vault, _tailIdx, _balance);
+        
         emit Steal(_tailIdx, _addr, _balance);
     }
 
